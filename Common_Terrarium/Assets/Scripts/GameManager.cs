@@ -98,12 +98,12 @@ namespace Assets.Scripts
             for (var i = 0; i < herb.Length; i++)
             {
                 CreatureAI c = herb[i].GetComponent<CreatureAI>();
-               // c.EndMe();
+                c.EndMe();
             }
             for (var i = 0; i < carn.Length; i++)
             {
                 CreatureAI c = carn[i].GetComponent<CreatureAI>();
-                //c.EndMe();
+                c.EndMe();
             }
         }
 
