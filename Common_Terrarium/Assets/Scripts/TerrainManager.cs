@@ -9,23 +9,43 @@ namespace Assets.Scripts
 {
     public class TerrainManager : MonoBehaviour
     {
-        private IFoodSpawner spawner;
+        private IFoodSpawner[] spawners;
         public GameObject plantFood;
-        public GameObject plantSpawn;
+        public GameObject[] plantSpawners;
+
+        private int plant_limit = 50;
 
         public void Start()
         {
-            spawner = new GuassianFoodSpawner(plantSpawn.transform.position, 100);
-            //spawner = new UniformFoodSpawner(0, 200, 0, 200);
+            spawners = new IFoodSpawner[plantSpawners.Length];
+            for (int i = 0; i < plantSpawners.Length; i++)
+            {
+                spawners[i] = new GuassianFoodSpawner(plantSpawners[i].transform.position, 100);
+            }
         }
 
         public void Update()
         {
-            var foodPos = spawner.SpawnFood(Time.deltaTime, GameObject.FindGameObjectsWithTag("plant"));
-            if (foodPos != Vector3.zero)
+            var plants = GameObject.FindGameObjectsWithTag("plant");
+            if(plants.Length < plant_limit)
             {
-                var newFood = Instantiate(plantFood, foodPos, plantFood.transform.localRotation);
+
+                SpawnFood();
             }
         }
+
+        public void SpawnFood()
+        {
+            foreach(IFoodSpawner spawner in spawners)
+            {
+                var foodPos = spawner.SpawnFood(Time.deltaTime, GameObject.FindGameObjectsWithTag("plant"));
+                if (foodPos != Vector3.zero)
+                {
+                    var newFood = Instantiate(plantFood, foodPos, plantFood.transform.localRotation);
+                }
+            }
+            
+        }
+
     }
 }

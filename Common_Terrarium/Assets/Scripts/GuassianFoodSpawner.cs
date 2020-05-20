@@ -63,9 +63,10 @@ namespace Assets.Scripts
 
                 //Debug.DrawLine(new Vector3(x_mean,0.1f, z_mean), new Vector3(x, 0.1f, z), Color.white, 300f);
 
-                return new Vector3(x, 15f, z);
+                return new Vector3(x, 0f, z);
             }
             return Vector3.zero;
         }
+        
     }
 }

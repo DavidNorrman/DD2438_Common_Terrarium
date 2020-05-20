@@ -12,7 +12,7 @@ namespace Assets.Scripts
 
         public float edibleRadius;
         public TerrainManager terrainManager;
-        public CreatureAI[] species;
+        public Creature[] species;
         public GameObject[] spawnAreas;
         public int nIndividualsPerSpecies;
 
@@ -60,7 +60,6 @@ namespace Assets.Scripts
                 //carnivores eat herbivores
                 animalFood = c.Sensor.SensePreys(c);
 
-
                 //the closest within the edible radius can be eaten
                 GameObject closestFood = null;
                 float distance = float.MaxValue;
@@ -78,7 +77,6 @@ namespace Assets.Scripts
                     animal.GetComponent<CreatureAI>().OnAccessibleFood(closestFood);
                     Debug.Log($"Calling the eating method !");
                 }
-
             }
         }
 
@@ -91,20 +89,20 @@ namespace Assets.Scripts
             SpawnCreatures();
         }
 
-        private void EndEpisodes()
+        public void EndEpisodes()
         {
-            GameObject[] herb = GameObject.FindGameObjectsWithTag("herbivore");
-            GameObject[] carn = GameObject.FindGameObjectsWithTag("carnivore");
-            for (var i = 0; i < herb.Length; i++)
-            {
-                CreatureAI c = herb[i].GetComponent<CreatureAI>();
-                c.EndMe();
-            }
-            for (var i = 0; i < carn.Length; i++)
-            {
-                CreatureAI c = carn[i].GetComponent<CreatureAI>();
-                c.EndMe();
-            }
+            //GameObject[] herb = GameObject.FindGameObjectsWithTag("herbivore");
+            //GameObject[] carn = GameObject.FindGameObjectsWithTag("carnivore");
+            //for (var i = 0; i < herb.Length; i++)
+            //{
+            //    CreatureAI c = herb[i].GetComponent<CreatureAI>();
+            //    c.EndMe();
+            //}
+            //for (var i = 0; i < carn.Length; i++)
+            //{
+            //    CreatureAI c = carn[i].GetComponent<CreatureAI>();
+            //    c.EndMe();
+            //}
         }
 
         private void SpawnCreatures()
@@ -116,11 +114,9 @@ namespace Assets.Scripts
             {
                 for (int i = 0; i < nIndividualsPerSpecies; i++)
                 {
-                    Debug.Log($"Creating species {k} - creature {i}");
-                    //float angle = (k * nIndividualsPerSpecies + i) * 360f / n;
                     float angle = (nIndividualsPerSpecies + i) * 360f / n;
                     Vector3 position = spawnAreas[k].transform.position + Quaternion.Euler(0, angle, 0f) * Vector3.forward * 50;
-                    position.y = 15f;
+                    position.y = 1f;
                     Instantiate(species[k], position, new Quaternion(0, angle, 0, 0));
                 }
             }
