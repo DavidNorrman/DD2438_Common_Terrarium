@@ -16,7 +16,7 @@ namespace Assets.Scripts
 
         public void Start()
         {
-            Debug.Log($"Creature AI is ready");
+            //Debug.Log($"Creature AI is ready");
             creature = GetComponent<Creature>();
             spawnArea = transform.localPosition;
         }
@@ -102,6 +102,12 @@ namespace Assets.Scripts
             // 1 value, float
             sensor.AddObservation(creature.Energy);
 
+            if(creature.Energy < 10)
+            {
+                AddReward(-0.1f);
+                EndMe();
+            }
+
             // 1 value, float
             sensor.AddObservation(creature.MaxEnergy);
 
@@ -122,7 +128,11 @@ namespace Assets.Scripts
 
         public (int[], int[], int[]) SenseSphere()
         {
-            var sphere = Physics.OverlapSphere(transform.position, creature.Sensor.SensingRadius);
+            var sphere = Physics.OverlapSphere(creature.transform.position, creature.Sensor.SensingRadius);
+
+            //Debug.Log(Vector3.SignedAngle(transform.right, transform.forward, Vector3.up));
+            //Debug.Log(Vector3.SignedAngle(transform.right*-1, transform.forward, Vector3.up));
+            //Debug.Log(Vector3.SignedAngle(transform.forward*-1, transform.forward, Vector3.up));
 
             int[] forw_right = new int[4];
             int[] forw_left = new int[4];
@@ -131,9 +141,15 @@ namespace Assets.Scripts
             foreach(Collider collider in sphere)
             {
                 var tag = collider.gameObject.tag;
-                float angle = Vector3.SignedAngle(transform.forward - transform.position, collider.transform.position - transform.position, Vector3.up);
-                if (angle > 90 || angle < -90)
+                if (collider.gameObject == creature.gameObject)
+                    continue;
+                if (tag == "terrain")
+                    continue;
+                float angle = Vector3.SignedAngle(collider.transform.position - creature.transform.position, creature.transform.forward, Vector3.up);
+                //Debug.Log(angle);
+                if (angle < 90 && angle > -90)
                 {
+                    Debug.Log(tag + " " + " back");
                     switch (tag)
                     {
                         case "plant":
@@ -152,8 +168,9 @@ namespace Assets.Scripts
                             break;
                     }
                 }
-                else if(angle <= 90 && angle >= 0)
+                else if(angle > 90)
                 {
+                    Debug.Log(tag + " " + " right");
                     switch (tag)
                     {
                         case "plant":
@@ -174,6 +191,7 @@ namespace Assets.Scripts
                 }
                 else
                 {
+                    Debug.Log(tag + " " + " left");
                     switch (tag)
                     {
                         case "plant":
