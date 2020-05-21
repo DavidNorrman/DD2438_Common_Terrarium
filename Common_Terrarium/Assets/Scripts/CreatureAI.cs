@@ -9,60 +9,42 @@ using MLAgents.Sensors;
 
 namespace Assets.Scripts
 {
-    /// <summary>
-    /// This is the class where most of the work will happen,
-    /// like in the previous assignments.
-    /// </summary>
     public class CreatureAI : Agent
     {
         private Creature creature;
-        private RayPerceptionSensorComponent3D raySensors;
+        public Vector3 spawnArea;
+        public Vector3 foodInstinct;
+        public bool child = false;
 
         public void Start()
         {
             Debug.Log($"Creature AI is ready");
             creature = GetComponent<Creature>();
-
-            // TODO: match raycast length to sensor size
-            RayPerceptionSensorComponent3D raySensors = GetComponent<RayPerceptionSensorComponent3D>();
-
-            raySensors.rayLength = creature.Sensor.SensingRadius;
+            spawnArea = transform.localPosition;
+            if(!child)
+                foodInstinct = GameObject.Find("PlantSpawn").transform.position;
         }
 
-        //public void Update()
-        //{
-        //    //here, you can call creature.Move
-        //    // you can make it sense the surroundings and reproduce, mutation is encompassed in the IReproduction implementation
+        // Returns direction and distance to foodInstinct
+        public (Vector3, float) UseFoodInstinct()
+        {
+            Vector3 heading = foodInstinct - transform.position;
+            float distance = heading.magnitude;
+            Vector3 direction = heading / distance;
 
-        //    /*creature.Move(...)
-        //    *creature.Sensor.SensePreys()
-        //    *creature.Reproduce()
-        //    */
+            Vector3 foodDirectionInstinct = direction;
+            float foodDistanceInstinct = distance;
 
-        //    //Current example :
-        //    var food = creature.Sensor.SensePlants(creature);
-        //    Vector3 closestFood = Vector3.zero;
-        //    float bestDistance = Vector3.Distance(closestFood, transform.position);
-        //    foreach (var foodPiece in food)
-        //    {
-        //        if (Vector3.Distance(foodPiece.transform.position, transform.position) < bestDistance)
-        //        {
-        //            bestDistance = Vector3.Distance(foodPiece.transform.position, transform.position);
-        //            closestFood = foodPiece.transform.position;
-        //        }
-        //    }
-        //    if (closestFood != Vector3.zero)
-        //    {
-        //        Debug.DrawLine(transform.position, closestFood, Color.red);
-        //        creature.Move(closestFood - transform.position, 1f);
-        //    }
-        //    //Vector3 dir = new Vector3(0.1f, 0f, 0.2f);
-        //    //creature.Move(dir, 1f);
-        //}
+            return (direction, distance);
+        }
 
         private (GameObject, bool) FindFood()
         {
-            List<GameObject> food = creature.Sensor.SensePlants(creature);
+            List<GameObject> food = new List<GameObject>();
+            if (creature.CreatureRegime == Creature.Regime.HERBIVORE)
+                food = creature.Sensor.SensePlants(creature);
+            else if (creature.CreatureRegime == Creature.Regime.CARNIVORE)
+                food = creature.Sensor.SensePreys(creature);
             Vector3 closestFood = Vector3.zero;
             float bestDistance = Vector3.Distance(closestFood, transform.position);
             GameObject closestFoodObj = new GameObject("empty");
@@ -80,27 +62,19 @@ namespace Assets.Scripts
             return (closestFoodObj, true);
         }
 
-        /// <summary>
-        /// This function is called when your creature is within an acceptable
-        /// range to eat some food, adapted to your regime of course.
-        /// You do not need to necessarily eat it of course.
-        /// </summary>
-        /// <param name="food"></param>
         public virtual void OnAccessibleFood(GameObject food)
         {
             creature.Eat(food);
-            if (creature.Energy > 0.2 * creature.MaxEnergy && UnityEngine.Random.Range(0,1)<0.1f) creature.Reproduce();
+            //if (creature.Energy > 0.2 * creature.MaxEnergy && UnityEngine.Random.Range(0, 1) < 0.1f) creature.Reproduce();
         }
 
-        // Perform actions based on a vector of numbers
         public override void OnActionReceived(float[] vectorAction)
         {
-
             float horiz = vectorAction[0];
             float vert = vectorAction[1];
             float speed = vectorAction[2];
             float eat = vectorAction[3];
-            float reproduction = vectorAction[4];
+            //float reproduce = vectorAction[4];
 
             // Direction, normalized
             if (horiz == 2f)
@@ -121,29 +95,38 @@ namespace Assets.Scripts
                 (GameObject, bool) food = FindFood();
                 if (food.Item2)
                 {
+                    foodInstinct = food.Item1.transform.position;
                     creature.Eat(food.Item1);
                     AddReward(1.0f);
                 }
             }
 
-            // Reproduce
-            bool repSuccess = false;
-            // Try to reproduce
-            //if (reproduction == 1f)
-            //    repSuccess = creature.Reproduce();
-            // If successful, add reward
-            if (repSuccess)
-                AddReward(0.5f);
-
             creature.Move(dir, speed);
+            
+            if(creature.Energy <= 0)
+            {
+                AddReward(-1.0f);
+                EndMe();
+            }
 
-            AddReward(-1f / 3000f);
+            //// Try to reproduce
+            //if(reproduce == 1f)
+            //{
+            //    bool child = creature.Reproduce();
+            //    if (child)
+            //    {
+            //        AddReward(1.0f);
+            //    }
+            //}
+
+            AddReward(-1f / 5000f);
         }
 
         // Reset the agent and area
         public override void OnEpisodeBegin()
         {
-
+            creature.Energy = creature.MaxEnergy;
+            transform.localPosition = GetRandomSpawnPoint();
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -154,21 +137,148 @@ namespace Assets.Scripts
             sensor.AddObservation((int)creature.CreatureRegime);
 
             // 1 value, float
-            sensor.AddObservation(creature.Energy);
-
-            // 1 value, float
-            sensor.AddObservation(creature.MaxEnergy);
+            float energyNorm = creature.Energy / creature.MaxEnergy;
+            sensor.AddObservation(energyNorm);
 
             // 1 value, float
             sensor.AddObservation(creature.Size);
 
-            // 4 VALUES TOTAL
+            // 3 values, vector3 
+            var instinct = UseFoodInstinct();
+            sensor.AddObservation(instinct.Item1);
 
+            // 1 value, float
+            sensor.AddObservation(instinct.Item2);
+
+
+            (int[] forw_right, int[] forw_left, int[] back) = SenseSphere();
+
+            // 12 values, int
+            for (int i = 0; i < 4; i++)
+            {
+                sensor.AddObservation(forw_right[i]);
+                sensor.AddObservation(forw_left[i]);
+                sensor.AddObservation(back[i]);
+            }
+
+            // 19 VALUES TOTAL
+        }
+
+        public (int[], int[], int[]) SenseSphere()
+        {
+            var sphere = Physics.OverlapSphere(creature.transform.position, creature.Sensor.SensingRadius);
+
+            //Debug.Log(Vector3.SignedAngle(transform.right, transform.forward, Vector3.up));
+            //Debug.Log(Vector3.SignedAngle(transform.right*-1, transform.forward, Vector3.up));
+            //Debug.Log(Vector3.SignedAngle(transform.forward*-1, transform.forward, Vector3.up));
+
+            int[] forw_right = new int[4];
+            int[] forw_left = new int[4];
+            int[] back = new int[4];
+
+            foreach (Collider collider in sphere)
+            {
+                var tag = collider.gameObject.tag;
+                if (collider.gameObject == creature.gameObject)
+                    continue;
+                if (tag == "terrain")
+                    continue;
+                float angle = Vector3.SignedAngle(collider.transform.position - creature.transform.position, creature.transform.forward, Vector3.up);
+                //Debug.Log(angle);
+                if (angle < 90 && angle > -90)
+                {
+                    Debug.Log(tag + " " + " back");
+                    switch (tag)
+                    {
+                        case "plant":
+                            back[0] = 1;
+                            break;
+                        case "carnivore":
+                            back[1] = 1;
+                            break;
+                        case "herbivore":
+                            back[2] = 1;
+                            break;
+                        case "wall":
+                            back[3] = 1;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else if (angle > 90)
+                {
+                    Debug.Log(tag + " " + " right");
+                    switch (tag)
+                    {
+                        case "plant":
+                            forw_right[0] = 1;
+                            break;
+                        case "carnivore":
+                            forw_right[1] = 1;
+                            break;
+                        case "herbivore":
+                            forw_right[2] = 1;
+                            break;
+                        case "wall":
+                            forw_right[3] = 1;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else
+                {
+                    Debug.Log(tag + " " + " left");
+                    switch (tag)
+                    {
+                        case "plant":
+                            forw_left[0] = 1;
+                            break;
+                        case "carnivore":
+                            forw_left[1] = 1;
+                            break;
+                        case "herbivore":
+                            forw_left[2] = 1;
+                            break;
+                        case "wall":
+                            forw_left[3] = 1;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            return (forw_right, forw_left, back);
         }
 
         public void EndMe()
         {
             EndEpisode();
+            //Destroy(creature);
+        }
+
+        public Vector3 GetRandomSpawnPoint()
+        {
+            float x_mean = spawnArea.x;
+            float z_mean = spawnArea.z;
+            float std = 10;
+
+            System.Random rand = new System.Random();
+            double x_u1 = 1.0f - rand.NextDouble();
+            double x_u2 = 1.0f - rand.NextDouble();
+            double x_randStdNormal = Math.Sqrt(-2.0 * Math.Log(x_u1)) * Math.Sin(2.0 * Math.PI * x_u2);
+
+            double z_u1 = 1.0f - rand.NextDouble();
+            double z_u2 = 1.0f - rand.NextDouble();
+            double z_randStdNormal = Math.Sqrt(-2.0 * Math.Log(z_u1)) * Math.Sin(2.0 * Math.PI * z_u2);
+
+            float x = x_mean + std * (float)x_randStdNormal;
+            float z = z_mean + std * (float)z_randStdNormal;
+
+            return new Vector3(x, 0.2f, z);
+
         }
     }
 }

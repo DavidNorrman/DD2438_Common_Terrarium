@@ -23,7 +23,7 @@ namespace Assets.Scripts
             time = 0;
 
             centers = new List<(float, float)>();
-            for(int i = 0; i < nr_guassians; i++)
+            for (int i = 0; i < nr_guassians; i++)
             {
                 float x = UnityEngine.Random.Range(xMin, xMax);
                 float z = UnityEngine.Random.Range(zMin, zMax);
@@ -63,9 +63,10 @@ namespace Assets.Scripts
 
                 //Debug.DrawLine(new Vector3(x_mean,0.1f, z_mean), new Vector3(x, 0.1f, z), Color.white, 300f);
 
-                return new Vector3(x, 15f, z);
+                return new Vector3(x, 0f, z);
             }
             return Vector3.zero;
         }
+
     }
 }

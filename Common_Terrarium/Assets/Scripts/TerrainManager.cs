@@ -9,23 +9,67 @@ namespace Assets.Scripts
 {
     public class TerrainManager : MonoBehaviour
     {
-        private IFoodSpawner spawner;
+        private IFoodSpawner[] spawners;
         public GameObject plantFood;
-        public GameObject plantSpawn;
+        public GameObject[] plantSpawners;
+
+        private int plant_limit = 50;
+        private Vector3 spawnerPos;
 
         public void Start()
         {
-            spawner = new GuassianFoodSpawner(plantSpawn.transform.position, 100);
-            //spawner = new UniformFoodSpawner(0, 200, 0, 200);
+            spawners = new IFoodSpawner[plantSpawners.Length];
+            for (int i = 0; i < plantSpawners.Length; i++)
+            {
+                spawners[i] = new GuassianFoodSpawner(plantSpawners[i].transform.position, 50);
+            }
+            spawnerPos = plantSpawners[0].transform.position;
         }
 
         public void Update()
         {
-            var foodPos = spawner.SpawnFood(Time.deltaTime, GameObject.FindGameObjectsWithTag("plant"));
-            if (foodPos != Vector3.zero)
+            var plants = GameObject.FindGameObjectsWithTag("plant");
+            if (plants.Length < plant_limit)
             {
-                var newFood = Instantiate(plantFood, foodPos, plantFood.transform.localRotation);
+                SpawnFood();
             }
+            // Dynamic position
+            MovePlantSpawners();
         }
+
+        public void SpawnFood()
+        {
+            foreach (IFoodSpawner spawner in spawners)
+            {
+                var foodPos = spawner.SpawnFood(Time.deltaTime, GameObject.FindGameObjectsWithTag("plant"));
+                if (foodPos != Vector3.zero)
+                {
+                    var newFood = Instantiate(plantFood, foodPos, plantFood.transform.localRotation);
+                    Destroy(newFood, 100f);
+                }
+            }
+
+        }
+
+        private void MovePlantSpawners()
+        {
+            Vector3 pos = plantSpawners[0].transform.position;
+            var rx = UnityEngine.Random.Range(-2.0f, 2.0f);
+            var rz = UnityEngine.Random.Range(-2.0f, 2.0f);
+            float dx = 0;
+            float dz = 0;
+
+            if (rx > 0 && pos.x < spawnerPos.x + 300f)
+                dx = rx;
+            if (rx < 0 && pos.x > spawnerPos.x - 300f)
+                dx = rx;
+            if (rz > 0 && pos.z < spawnerPos.z + 300f)
+                dz = rz;
+            if (rz < 0 && pos.z > spawnerPos.z - 300f)
+                dz = rz;
+
+            plantSpawners[0].transform.position = new Vector3(pos.x + dx, 0f, pos.z + dz);
+        }
+
     }
 }
